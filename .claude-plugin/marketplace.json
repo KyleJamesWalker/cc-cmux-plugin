@@ -1,0 +1,17 @@
+{
+  "name": "KyleJamesWalker-cc-cmux-plugin",
+  "owner": {
+    "name": "Kyle James Walker"
+  },
+  "plugins": [
+    {
+      "name": "cmux-integration",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/KyleJamesWalker/cc-cmux-plugin.git",
+        "ref": "main"
+      },
+      "description": "cmux terminal integration for Claude Code — status bar, notifications, pane management, and agent orchestration inside cmux workspaces"
+    }
+  ]
+}

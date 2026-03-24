@@ -1,0 +1,57 @@
+{
+  "name": "cmux-integration",
+  "description": "cmux terminal integration for Claude Code — status bar, notifications, pane management, and agent orchestration inside cmux workspaces",
+  "version": "1.0.0",
+  "permissions": {
+    "allow": [
+      "Bash(cmux *)"
+    ]
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$CMUX_WORKSPACE_ID\" ] && cmux notify '${notificationText}'",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$CMUX_WORKSPACE_ID\" ] && cat ${CLAUDE_PLUGIN_ROOT}/rules/cmux-integration.md || echo 'Not running inside cmux — skipping cmux integration'"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$CMUX_WORKSPACE_ID\" ] && cmux set-status agent \"Active\" --icon bolt --color \"#22c55e\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -n \"$CMUX_WORKSPACE_ID\" ] && cmux set-status agent \"Idle\" --icon circle --color \"#6b7280\" && cmux clear-progress",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

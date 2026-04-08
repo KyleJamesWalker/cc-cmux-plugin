@@ -90,42 +90,163 @@ cmux send --surface surface:N "some command"
 1. Name the lead/coordinator session first: `/rename commander` (or similar) so it's identifiable in `cmux tree`.
 2. Create split panes — use `cmux new-split right` and `cmux new-split down` for a multi-pane layout (lead on left, agents on right stacked vertically).
 3. Capture the `surface:N` reference returned by `cmux new-split`.
-4. Launch claude with a descriptive `--name` in each pane:
+4. Launch claude with a descriptive `--name` in each pane — **do NOT `cd` first** (see Git Worktrees note below):
    ```bash
    cmux send --surface surface:N "claude --dangerously-skip-permissions --name agent-name-here"
    cmux send-key --surface surface:N "Return"
    ```
    Use names matching the agent's role (e.g., `ui-ux-engineer`, `logic-dev`, `architect`).
-5. Wait for claude to initialize (~5-10s), then send the task as a message:
+5. **Wait for the `❯` prompt** before sending the task — poll instead of using a fixed sleep:
    ```bash
-   # For short prompts, send directly:
-   cmux send --surface surface:N "your task description here"
-   cmux send-key --surface surface:N "Return"
-
-   # For long/complex prompts, write to a file first and tell the agent to read it:
-   # (Write prompt to /tmp/agent-task.txt with the Write tool, then:)
-   cmux send --surface surface:N "Read /tmp/agent-task.txt and follow the instructions in it"
+   # Condition-based init wait — poll every 0.5s until the claude prompt appears
+   for i in $(seq 1 40); do
+     output=$(cmux read-screen --surface surface:N --lines 3 2>&1)
+     echo "$output" | grep -q "❯" && break
+     sleep 0.5
+   done
+   ```
+   Then send the task. For long/complex prompts write to a uniquely-named file and point the agent at it (avoids quoting issues and collisions between agents):
+   ```bash
+   # Write prompt to /tmp/cmux-task-AGENTNAME.txt with the Write tool, then:
+   cmux send --surface surface:N "Read /tmp/cmux-task-AGENTNAME.txt and follow the instructions in it"
    cmux send-key --surface surface:N "Return"
    ```
-6. Monitor agent progress with `cmux read-screen --surface surface:N --lines <n>`.
-   - Use `--scrollback` to see full history, not just the visible terminal area.
+   **Always include sentinel instructions at the end of every task prompt** (see Sentinel Protocol below).
+6. **Monitor via sentinel files** — poll `/tmp/cmux-done-AGENTNAME.json` for completion rather than parsing terminal output. Use `cmux read-screen --surface surface:N --scrollback --lines <n>` only for debugging a specific agent.
 7. Check file changes to confirm agent output (e.g., `wc -l`, `Read`).
 8. Use `cmux tree --all` to verify all agents are running and named correctly.
 
-**Full example — launching a named agent:**
+**Full example — launching a named agent with sentinel completion:**
 ```bash
 # 1. Create pane
 cmux new-split right
 # => OK surface:7 workspace:2
 
-# 2. Launch claude with a name
+# 2. Launch claude with a name (from current dir — do NOT cd first)
 cmux send --surface surface:7 "claude --dangerously-skip-permissions --name ui-ux-engineer"
 cmux send-key --surface surface:7 "Return"
-# (wait ~5-10s for claude to initialize)
 
-# 3. Send the task
-cmux send --surface surface:7 "Read /tmp/uiux-prompt.txt and follow the instructions in it"
+# 3. Wait for ❯ prompt (condition-based, not fixed sleep)
+for i in $(seq 1 40); do
+  cmux read-screen --surface surface:7 --lines 3 | grep -q "❯" && break
+  sleep 0.5
+done
+
+# 4. Send the task (prompt file must include sentinel instructions)
+cmux send --surface surface:7 "Read /tmp/cmux-task-ui-ux-engineer.txt and follow the instructions in it"
 cmux send-key --surface surface:7 "Return"
+
+# 5. Poll for completion (no screen parsing needed)
+while [ ! -f /tmp/cmux-done-ui-ux-engineer.json ]; do sleep 5; done
+cat /tmp/cmux-done-ui-ux-engineer.json
+```
+
+**Git Worktrees — avoid creating extra CC sessions/projects:**
+When you `cd /path/to/worktree && claude`, Claude Code registers the worktree directory as a **new project**, cluttering the projects list. Avoid this by:
+
+- **Preferred:** Launch `claude` without `cd`-ing — it stays in the current (main) project dir. Pass the worktree path as an absolute path in the task prompt so the agent uses it for all edits and commands:
+  ```bash
+  # WRONG — creates a new CC project entry for the worktree
+  cmux send --surface surface:N "cd /path/duck_data_wt_main && claude --name agent"
+  cmux send-key --surface surface:N "Return"
+
+  # RIGHT — stays in main project, agent uses absolute worktree path in task
+  cmux send --surface surface:N "claude --dangerously-skip-permissions --name agent"
+  cmux send-key --surface surface:N "Return"
+  # In the task prompt: "Work only in /path/duck_data_wt_main — use absolute paths for all edits"
+  ```
+- **Alternative:** Create worktrees under `/tmp/` so they never appear as persistent project entries:
+  ```bash
+  git worktree add /tmp/wt-feature HEAD
+  ```
+
+**Pane reuse — CWD persists between tasks:**
+When reassigning an idle pane to a new task, the agent's shell state (including cwd) is unchanged from the previous task. Always use absolute paths in task prompts and explicitly state the working directory — don't assume the agent is in the directory you expect.
+
+**Agent completion — sentinel file protocol:**
+
+This is the preferred way for sub-agents to report back. It replaces `cmux send` callbacks (which have race conditions) and `cmux read-screen` polling (which requires fragile terminal output parsing).
+
+*What to append to every sub-agent task prompt:*
+```
+When your task is fully complete:
+1. Write your full results to /tmp/cmux-results-AGENTNAME.md
+2. Write a JSON sentinel atomically — results file MUST be written first:
+
+   printf '{"agent":"AGENTNAME","status":"success","summary":"one-line summary here","results":"/tmp/cmux-results-AGENTNAME.md"}' \
+     > /tmp/cmux-done-AGENTNAME.tmp.json \
+     && mv /tmp/cmux-done-AGENTNAME.tmp.json /tmp/cmux-done-AGENTNAME.json
+
+   On failure, use "status":"error" and put the error message in "summary".
+   The mv makes the write atomic — the coordinator only sees a complete sentinel.
+```
+
+*Sentinel JSON structure:*
+```json
+{
+  "agent": "ui-ux-engineer",
+  "status": "success",
+  "summary": "Built login form with validation, 3 components added",
+  "results": "/tmp/cmux-results-ui-ux-engineer.md"
+}
+```
+
+*Main agent polling — wait for all sentinels:*
+```bash
+agents=("ui-ux-engineer" "logic-dev" "architect")
+timeout=1800  # 30 min max
+elapsed=0
+interval=10
+
+while [ $elapsed -lt $timeout ]; do
+  all_done=true
+  for agent in "${agents[@]}"; do
+    [ -f "/tmp/cmux-done-${agent}.json" ] || { all_done=false; break; }
+  done
+  $all_done && break
+  sleep $interval
+  elapsed=$((elapsed + interval))
+done
+
+# Read results
+for agent in "${agents[@]}"; do
+  sentinel="/tmp/cmux-done-${agent}.json"
+  if [ -f "$sentinel" ]; then
+    cat "$sentinel"   # shows status + summary
+  else
+    echo "TIMEOUT/CRASH: ${agent} never completed"
+  fi
+done
+```
+
+Why this beats polling `cmux read-screen`:
+- **No terminal output parsing** — file existence is a single syscall
+- **Atomic** — coordinator never reads a partial sentinel (`mv` is atomic on the same filesystem)
+- **Crash detection** — a missing sentinel after timeout means the agent died or hung
+- **Results on disk** — coordinator reads the full results file only when needed, not streamed through terminal state
+- **No race conditions** — each agent writes its own file; simultaneous completions don't interfere
+
+*Cleanup sentinels after all agents are done:*
+```bash
+rm -f /tmp/cmux-done-*.json /tmp/cmux-results-*.md /tmp/cmux-task-*.txt
+```
+
+**Stuck agents — interrupt extended thinking:**
+A missing sentinel after the polling timeout is the first signal an agent may be stuck or crashed. Verify with `cmux read-screen` before intervening:
+```bash
+cmux read-screen --surface surface:N --scrollback --lines 20
+```
+If it shows the same "Thinking..." / "Ionizing..." state for more than 3-4 minutes, send Escape and retry with a simpler prompt:
+```bash
+cmux send-key --surface surface:N "Escape"
+sleep 2
+cmux send --surface surface:N "your simplified task here"
+cmux send-key --surface surface:N "Return"
+```
+If the agent has crashed entirely (no activity, no sentinel), close the pane and re-spawn:
+```bash
+cmux close-surface --surface surface:N
+# Re-run the spawn + task steps for that agent
 ```
 
 **Why interactive mode over `claude -p`:** Using `claude -p "..."` requires the entire prompt on the command line, which causes quoting/escaping nightmares when sent through `cmux send` (nested quotes, special characters, multi-line content all break). Interactive mode avoids this entirely — claude is already running, and `cmux send` just types the message into the session.
@@ -146,8 +267,14 @@ cmux send-key --surface surface:7 "Return"
 
 **Cleanup:**
 - Agents launched via `claude -p` exit automatically when done.
-- Interactive agents need `/exit` or Ctrl+C sent via `cmux send-key`.
-- Close extra panes with `cmux close-surface --surface surface:N` after work is complete.
+- Interactive agents need `/exit` before closing their pane — send it first, then close:
+  ```bash
+  cmux send --surface surface:N "/exit"
+  cmux send-key --surface surface:N "Return"
+  sleep 1
+  cmux close-surface --surface surface:N
+  ```
+- If the agent is unresponsive, fall back to Ctrl+C: `cmux send-key --surface surface:N "ctrl+c"`.
 </teams_and_agents>
 
 <guidelines>

@@ -70,6 +70,8 @@ addstyle <css>
 ```
 
 Most interaction/navigation subcommands accept `--snapshot-after` to return a snapshot after the action.
+
+For step-by-step browser automation workflows (searching, scraping, screenshots, form interaction), use the `cmux-integration:browser-automation` skill.
 </browser>
 
 <teams_and_agents>

@@ -1,7 +1,7 @@
 {
   "name": "cmux-integration",
   "description": "cmux terminal integration for Claude Code — status bar, notifications, pane management, and agent orchestration inside cmux workspaces",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "permissions": {
     "allow": [
       "Bash(cmux *)"

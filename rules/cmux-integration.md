@@ -71,77 +71,7 @@ addstyle <css>
 
 Most interaction/navigation subcommands accept `--snapshot-after` to return a snapshot after the action.
 
-**Browser automation workflow — practical patterns:**
-
-1. **Open a browser pane and capture the surface reference:**
-   ```bash
-   cmux new-pane --type browser --direction right --url "https://example.com"
-   # => OK surface:35 pane:29 workspace:3
-   # Always capture and reuse the surface:N reference for all subsequent commands.
-   ```
-
-2. **Wait for navigation, then snapshot:**
-   After `navigate` or `goto`, the page needs time to load. Use a short delay (under 2s) then `snapshot --compact` to inspect the page structure:
-   ```bash
-   sleep 1.5 && cmux browser --surface surface:N snapshot --compact
-   ```
-   `--compact` keeps the output manageable. Use `--selector <css>` to scope to a specific area if the page is large.
-
-3. **Prefer URL navigation over form interaction for search engines:**
-   Google, Craigslist, and other search sites often have comboboxes/autocomplete widgets that throw JS exceptions when automated via `click`/`type`/`fill`. **Bypass forms entirely** by constructing the search URL directly:
-   ```bash
-   # WRONG — fragile, JS exceptions on complex widgets
-   cmux browser --surface surface:N click "ref=e591"
-   cmux browser --surface surface:N type "ref=e591" "search query"
-
-   # RIGHT — reliable, skips form interaction entirely
-   cmux browser --surface surface:N navigate "https://www.google.com/search?q=search+query"
-   cmux browser --surface surface:N navigate "https://losangeles.craigslist.org/search/sss?query=dressers"
-   ```
-   This pattern works for most sites with query-string-based search.
-
-4. **Use `eval` for JavaScript execution** (not `js`, `evaluate`, or `exec`):
-   ```bash
-   cmux browser --surface surface:N eval "document.title"
-   cmux browser --surface surface:N eval "JSON.stringify(someData, null, 2)"
-   ```
-
-5. **Extract structured data with `eval`:**
-   Use `eval` with `JSON.stringify` and CSS selectors to scrape page data into JSON. Pipe directly to a file:
-   ```bash
-   cmux browser --surface surface:N eval "JSON.stringify(
-     Array.from(document.querySelectorAll('a.titlestring')).map(a => ({
-       title: a.textContent.trim(),
-       link: a.href
-     })), null, 2)" > results.json
-   ```
-
-6. **Use `screenshot --out <path>` for visual capture:**
-   ```bash
-   cmux browser --surface surface:N screenshot --out /path/to/output.jpg
-   ```
-   Screenshots capture the current viewport. Scroll first if needed:
-   ```bash
-   cmux browser --surface surface:N scroll --dy 500
-   cmux browser --surface surface:N screenshot --out /path/to/below-fold.jpg
-   ```
-
-7. **Use `get` for simple value extraction without JavaScript:**
-   ```bash
-   cmux browser --surface surface:N get url      # current URL
-   cmux browser --surface surface:N get title    # page title
-   cmux browser --surface surface:N get text --selector "h1"  # element text
-   cmux browser --surface surface:N get html --selector ".results"  # element HTML
-   cmux browser --surface surface:N get count --selector "li.result"  # count matches
-   ```
-
-8. **Interaction fallback order** when a direct approach fails:
-   - First try: `navigate` with URL parameters (most reliable)
-   - Second try: `fill` on the selector (sets value programmatically)
-   - Third try: `click` then `type` (simulates real user input)
-   - Last resort: `eval` with raw JavaScript DOM manipulation
-
-9. **Large outputs get auto-persisted** — when a snapshot or eval result exceeds the inline limit, it's saved to a file. Read the persisted file path from the output to access the full data.
+For step-by-step browser automation workflows (searching, scraping, screenshots, form interaction), use the `cmux-integration:browser-automation` skill.
 </browser>
 
 <teams_and_agents>

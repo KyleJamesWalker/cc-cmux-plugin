@@ -14,7 +14,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -n \"$CMUX_WORKSPACE_ID\" ] && cmux notify '${notificationText}'",
+            "command": "[ -z \"$CMUX_WORKSPACE_ID\" ] || cmux notify '${notificationText}'",
             "async": true
           }
         ]
@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -n \"$CMUX_WORKSPACE_ID\" ] && cmux set-status agent \"Active\" --icon bolt --color \"#22c55e\"",
+            "command": "[ -z \"$CMUX_WORKSPACE_ID\" ] || cmux set-status agent \"Active\" --icon bolt --color \"#22c55e\"",
             "timeout": 5
           }
         ]
@@ -47,7 +47,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -n \"$CMUX_WORKSPACE_ID\" ] && cmux set-status agent \"Idle\" --icon circle --color \"#6b7280\" && cmux clear-progress",
+            "command": "[ -z \"$CMUX_WORKSPACE_ID\" ] || { cmux set-status agent \"Idle\" --icon circle --color \"#6b7280\" && cmux clear-progress; }",
             "timeout": 5
           }
         ]

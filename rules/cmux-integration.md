@@ -16,7 +16,7 @@ cmux set-status <key> <value> [--icon <name>] [--color <#hex>]
 cmux clear-status <key>
 cmux set-progress <0.0-1.0> [--label <text>]
 cmux clear-progress
-cmux log [--level <level>] [--source <name>] -- <message>
+cmux log [--level <level>] [--source <name>] <message>
 cmux notify --title <text> [--subtitle <text>] [--body <text>]
 ```
 </sidebar>
@@ -24,7 +24,7 @@ cmux notify --title <text> [--subtitle <text>] [--body <text>]
 <pane_management>
 ```bash
 cmux new-split <left|right|up|down>
-cmux new-pane [--type <terminal|browser>] [--direction <left|right|up|down>] [--url <url>]
+cmux new-pane [--type <terminal|browser|simulator>] [--direction <left|right|up|down>] [--url <url>] [--command <text>]
 cmux send [--surface <ref>] <text>
 cmux send-key [--surface <ref>] <key>
 cmux read-screen [--surface <ref>] [--scrollback] [--lines <n>]

@@ -1,6 +1,6 @@
 # cc-cmux-plugin
 
-A [Claude Code plugin](https://code.claude.com/docs/en/plugins-reference) that integrates [cmux](https://cmux.dev) — a native macOS terminal for AI coding agents built on the Ghostty engine — with Claude Code sessions.
+A [Claude Code plugin](https://code.claude.com/docs/en/plugins-reference) that integrates [cmux](https://cmux.com) — a native macOS terminal for AI coding agents built on the Ghostty engine — with Claude Code sessions.
 
 ## What it does
 
@@ -78,14 +78,15 @@ claude plugin update cmux-integration@KyleJamesWalker-cc-cmux-plugin
 ```
 .claude-plugin/
   marketplace.json   # Marketplace registry metadata
-  plugin.json        # Plugin manifest (name, version, hooks ref)
-hooks/
-  hooks.json         # Hook definitions (SessionStart, Stop, Notification)
+  plugin.json        # Plugin manifest and hook definitions
 rules/
   cmux-integration.md  # Context injected into every session
+skills/
+  browser-automation/SKILL.md  # Browser pane workflows
 ```
 
 ## Requirements
 
-- [cmux](https://cmux.dev) must be installed and the session must be running inside a cmux workspace (`$CMUX_WORKSPACE_ID` set)
+- [cmux](https://cmux.com) 0.64.25 or later, with the session running inside a cmux workspace (`$CMUX_WORKSPACE_ID` set)
 - Claude Code with plugin support
+- `jq`, for the notification hook

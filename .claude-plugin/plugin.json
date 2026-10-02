@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -z \"$CMUX_WORKSPACE_ID\" ] || cmux notify '${notificationText}'",
+            "command": "[ -z \"$CMUX_WORKSPACE_ID\" ] || cmux notify --title \"Claude Code\" --body \"$(jq -r '.message // empty')\"",
             "async": true
           }
         ]

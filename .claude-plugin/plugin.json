@@ -27,17 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -n \"$CMUX_WORKSPACE_ID\" ] && cat ${CLAUDE_PLUGIN_ROOT}/rules/cmux-integration.md || echo 'Not running inside cmux — skipping cmux integration'"
-          }
-        ]
-      },
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "[ -z \"$CMUX_WORKSPACE_ID\" ] || cmux set-status agent \"Active\" --icon bolt --color \"#22c55e\"",
-            "timeout": 5
+            "command": "[ -z \"$CMUX_WORKSPACE_ID\" ] || cat \"${CLAUDE_PLUGIN_ROOT}/rules/cmux-integration.md\""
           }
         ]
       }
@@ -48,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -z \"$CMUX_WORKSPACE_ID\" ] || { cmux set-status agent \"Idle\" --icon circle --color \"#6b7280\" && cmux clear-progress; }",
+            "command": "[ -z \"$CMUX_WORKSPACE_ID\" ] || cmux clear-progress",
             "timeout": 5
           }
         ]

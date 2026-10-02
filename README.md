@@ -7,17 +7,21 @@ A [Claude Code plugin](https://code.claude.com/docs/en/plugins-reference) that i
 When installed, this plugin automatically:
 
 - **Injects cmux context** into every Claude Code session — the full cmux command reference for status bar, pane management, browser control, and multi-agent orchestration
-- **Sets agent status** in the cmux sidebar (`Active` on session start, `Idle` on stop)
 - **Routes notifications** through cmux's native notification system
+- **Clears the progress bar** when Claude stops
 - **Grants permissions** for all `cmux` CLI commands
+
+Running state in the sidebar comes from cmux itself. Turn on the Claude Code integration in cmux Settings.
 
 ### Hooks
 
 | Event | Behavior |
 |-------|----------|
-| `SessionStart` | Injects `rules/cmux-integration.md` into context; sets status to "Active" |
-| `Stop` | Sets status to "Idle"; clears progress bar |
+| `SessionStart` | Injects `rules/cmux-integration.md` into context |
+| `Stop` | Clears the progress bar |
 | `Notification` | Forwards Claude Code notifications to `cmux notify` |
+
+Outside cmux (`$CMUX_WORKSPACE_ID` unset), every hook does nothing.
 
 ## Installation
 

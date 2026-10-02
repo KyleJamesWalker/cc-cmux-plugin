@@ -10,34 +10,43 @@ Automate web browsing tasks using cmux browser panes — navigation, searching, 
 ## Prerequisites
 
 - Must be running inside cmux (`$CMUX_WORKSPACE_ID` is set)
-- Browser commands follow: `cmux browser [--surface <ref>] <subcommand> [args]`
-- The `--surface` flag goes BEFORE the subcommand — placing it after will error
+- Browser commands follow: `cmux browser [--surface <ref> | <ref>] <subcommand> [args]`
+- Every subcommand except `open`, `open-split`, `new` and `identify` needs a surface. `$CMUX_SURFACE_ID` is your terminal, not the browser, so it is never a fallback
 
 ## Workflow
 
 ### 1. Open a Browser Pane
 
-Open a browser pane and capture the `surface:N` reference for all subsequent commands:
+Open a browser split and capture the surface reference for all subsequent commands:
 
 ```bash
-cmux new-pane --type browser --direction right --url "https://example.com"
-# => OK surface:35 pane:29 workspace:3
+cmux --json browser open-split "https://example.com" | jq -r '.surface_ref'
+# => surface:35
 # Store the surface:N value — you need it for every command below.
 ```
 
-Use `--direction` to control placement: `right`, `left`, `up`, `down`.
+New browser panes do not take focus unless you pass `--focus true`. For a specific direction, use `cmux new-pane --type browser --direction <left|right|up|down> --url <url>`.
+
+To reuse a browser that is already open, find it without changing focus:
+
+```bash
+cmux --json tree --all | jq -r '.. | objects | select(.type? == "browser") | .ref'
+```
 
 ### 2. Wait for Page Load, Then Inspect
 
-After any `navigate`/`goto`, the page needs time to render. Use a short delay (under 2 seconds) then `snapshot --compact` to inspect the accessibility tree:
+After any `navigate`/`goto`, wait for the load to finish, then `snapshot --compact` to inspect the accessibility tree:
 
 ```bash
-sleep 1.5 && cmux browser --surface surface:N snapshot --compact
+cmux browser --surface surface:N wait --load-state complete --timeout-ms 15000
+cmux browser --surface surface:N snapshot --compact
 ```
+
+Take a new snapshot after every navigation. Element refs from the old page do not carry over.
 
 - `--compact` keeps output manageable for large pages
 - `--selector <css>` scopes the snapshot to a specific area
-- `-i` (interactive) adds `ref=eNNN` identifiers you can target with click/type/fill
+- `--interactive` (`-i`) adds `ref=eNNN` identifiers you can target with click/type/fill
 
 ### 3. Navigate and Search
 
@@ -88,6 +97,12 @@ cmux browser --surface surface:N get attr --selector "a" --attr "href"  # attrib
 
 ```bash
 cmux browser --surface surface:N screenshot --out /path/to/output.jpg
+```
+
+To capture a specific layout, set the viewport first (`viewport reset` restores the pane size):
+
+```bash
+cmux browser --surface surface:N viewport 390 844
 ```
 
 To capture content below the fold, scroll first:
@@ -161,11 +176,19 @@ cmux browser --surface surface:N wait --selector ".slow-content" --timeout 30
 
 ## Common Mistakes
 
-- **Placing `--surface` after the subcommand** — it must come before: `cmux browser --surface surface:N navigate`, not `cmux browser navigate --surface surface:N`
+- **Omitting the surface** — `cmux browser get url` fails with `Invalid surface handle`. Pass `--surface surface:N` or put `surface:N` first
 - **Using `js`/`evaluate`/`exec` instead of `eval`** — only `eval` is a valid subcommand
 - **Trying to automate Google/Craigslist search forms** — use URL parameters instead
-- **Not waiting after navigation** — pages need time to render before snapshot/interaction
+- **Not waiting after navigation** — use `wait --load-state complete`, not a fixed sleep
+- **Reusing refs after navigation** — refs belong to one snapshot. Snapshot again
+- **Uploading files** — this cmux release has no command for file inputs
 - **Forgetting the surface reference** — capture it from `new-pane` output and reuse throughout
+
+## Recovering from Errors
+
+If `eval` or a snapshot returns a `js_error`, read the page with `get text body` or `get html body` instead.
+
+The cmux browser is WKWebView. `offline`, `trace`, `network route`, `screencast` and raw `input` return `not_supported`, so do not plan around them.
 
 ## Large Output Handling
 

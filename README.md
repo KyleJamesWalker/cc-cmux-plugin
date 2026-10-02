@@ -9,7 +9,6 @@ When installed, this plugin automatically:
 - **Injects cmux context** into every Claude Code session — the full cmux command reference for status bar, pane management, browser control, and multi-agent orchestration
 - **Routes notifications** through cmux's native notification system
 - **Clears the progress bar** when Claude stops
-- **Grants permissions** for all `cmux` CLI commands
 
 Running state in the sidebar comes from cmux itself. Turn on the Claude Code integration in cmux Settings.
 
@@ -79,7 +78,7 @@ claude plugin update cmux-integration@KyleJamesWalker-cc-cmux-plugin
 ```
 .claude-plugin/
   marketplace.json   # Marketplace registry metadata
-  plugin.json        # Plugin manifest (name, version, permissions, hooks ref)
+  plugin.json        # Plugin manifest (name, version, hooks ref)
 hooks/
   hooks.json         # Hook definitions (SessionStart, Stop, Notification)
 rules/
